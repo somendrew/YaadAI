@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "YaadAI",
+    "slug": "yaadai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#6C63FF"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourname.yaadai",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "YaadAI needs access to your photo library to import screenshots.",
+        "NSPhotoLibraryAddUsageDescription": "YaadAI needs access to save processed images."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#6C63FF"
+      },
+      "package": "com.yourname.yaadai",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-media-library",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "YaadAI needs access to your photos to import screenshots."
+        }
+      ]
+    ],
+    "scheme": "yaadai",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "b0502805-7d0b-4ec4-ad09-1a63e4d662d3"
+      }
+    }
+  }
+}
