@@ -1,306 +1,222 @@
 // src/screens/HomeScreen.tsx
+// Phase 2 update: added AI Chat and Quiz quick-action buttons
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  RefreshControl,
-  StatusBar,
+  ScrollView,
+  SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getCategoryCounts } from '../lib/db';
-import { CATEGORY_COLORS } from '../lib/categorizer';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '../lib/supabase';
+
+const PURPLE = '#6C63FF';
+const PURPLE_LIGHT = '#EEF0FF';
+
+interface Stats {
+  total: number;
+  categories: number;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [total, setTotal] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const loadStats = useCallback(async () => {
-    const data = await getCategoryCounts();
-    setCounts(data);
-    setTotal(Object.values(data).reduce((a, b) => a + b, 0));
-  }, []);
+  const [stats, setStats] = useState<Stats>({ total: 0, categories: 0 });
 
   useEffect(() => {
-    loadStats();
+    fetchStats();
   }, []);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadStats();
-    setRefreshing(false);
-  };
+  async function fetchStats() {
+    const { data } = await supabase
+      .from('screenshots')
+      .select('category')
+      .eq('is_deleted', false);
 
-  const topCategories = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+    if (data) {
+      const unique = new Set(data.map((r: { category: string }) => r.category));
+      setStats({ total: data.length, categories: unique.size });
+    }
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#6C63FF" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.appName}>YaadAI</Text>
-          <Text style={styles.tagline}>Your screenshots, remembered</Text>
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.greeting}>Hello 👋</Text>
+          <Text style={styles.title}>YaadAI</Text>
+          <Text style={styles.subtitle}>Your personal knowledge base</Text>
         </View>
+
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statNum}>{stats.total}</Text>
+            <Text style={styles.statLabel}>Notes saved</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statNum}>{stats.categories}</Text>
+            <Text style={styles.statLabel}>Topics</Text>
+          </View>
+        </View>
+
+        {/* ── Phase 2 AI Features ── */}
+        <Text style={styles.sectionTitle}>✨ AI Features</Text>
+
         <TouchableOpacity
-          style={styles.uploadBtn}
-          onPress={() => router.push('/upload')}
+          style={styles.aiCard}
+          onPress={() => router.push('/chat')}
+          activeOpacity={0.85}
         >
-          <Ionicons name="add" size={28} color="#fff" />
+          <View style={styles.aiIconWrap}>
+            <Ionicons name="chatbubble-ellipses" size={28} color={PURPLE} />
+          </View>
+          <View style={styles.aiCardText}>
+            <Text style={styles.aiCardTitle}>Ask Your Notes</Text>
+            <Text style={styles.aiCardSub}>
+              Chat with AI — get answers cited from your screenshots
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={PURPLE} />
         </TouchableOpacity>
-      </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {/* Stats card */}
-        <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{total}</Text>
-            <Text style={styles.statLabel}>Screenshots saved</Text>
+        <TouchableOpacity
+          style={styles.aiCard}
+          onPress={() => router.push('/quiz')}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.aiIconWrap, { backgroundColor: '#FFF7ED' }]}>
+            <Ionicons name="school" size={28} color="#F97316" />
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>
-              {Object.keys(counts).length}
+          <View style={styles.aiCardText}>
+            <Text style={styles.aiCardTitle}>Quiz Me</Text>
+            <Text style={styles.aiCardSub}>
+              AI-generated MCQ, true/false &amp; fill-in-the-blank questions
             </Text>
-            <Text style={styles.statLabel}>Topics found</Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Quizzes done</Text>
-          </View>
-        </View>
+          <Ionicons name="chevron-forward" size={20} color="#F97316" />
+        </TouchableOpacity>
 
-        {/* Quick actions */}
+        {/* ── Quick Actions ── */}
         <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.actionsRow}>
-          <QuickAction
-            icon="images-outline"
-            label="Upload"
-            color="#6C63FF"
+
+        <View style={styles.quickGrid}>
+          <TouchableOpacity
+            style={styles.quickBtn}
             onPress={() => router.push('/upload')}
-          />
-          <QuickAction
-            icon="library-outline"
-            label="Library"
-            color="#00BFA5"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="cloud-upload-outline" size={24} color={PURPLE} />
+            <Text style={styles.quickLabel}>Upload</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickBtn}
             onPress={() => router.push('/library')}
-          />
-          <QuickAction
-            icon="search-outline"
-            label="Search"
-            color="#FF6B35"
+            activeOpacity={0.8}
+          >
+            <Ionicons name="library-outline" size={24} color={PURPLE} />
+            <Text style={styles.quickLabel}>Library</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickBtn}
             onPress={() => router.push('/search')}
-          />
+            activeOpacity={0.8}
+          >
+            <Ionicons name="search-outline" size={24} color={PURPLE} />
+            <Text style={styles.quickLabel}>Search</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Top categories */}
-        {topCategories.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Your Topics</Text>
-            {topCategories.map(([category, count]) => (
-              <TouchableOpacity
-                key={category}
-                style={styles.categoryRow}
-                onPress={() =>
-                  router.push({ pathname: '/library', params: { category } })
-                }
-              >
-                <View
-                  style={[
-                    styles.categoryDot,
-                    {
-                      backgroundColor:
-                        CATEGORY_COLORS[
-                          category as keyof typeof CATEGORY_COLORS
-                        ] ?? '#CBD5E0',
-                    },
-                  ]}
-                />
-                <Text style={styles.categoryName}>{category}</Text>
-                <Text style={styles.categoryCount}>
-                  {count} {count === 1 ? 'note' : 'notes'}
-                </Text>
-                <Ionicons name="chevron-forward" size={16} color="#aaa" />
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
-
-        {/* Empty state */}
-        {total === 0 && (
-          <View style={styles.emptyState}>
-            <Ionicons name="images-outline" size={64} color="#CBD5E0" />
-            <Text style={styles.emptyTitle}>No screenshots yet</Text>
-            <Text style={styles.emptyText}>
-              Tap the + button to upload your first screenshot
-            </Text>
-            <TouchableOpacity
-              style={styles.emptyBtn}
-              onPress={() => router.push('/upload')}
-            >
-              <Text style={styles.emptyBtnText}>Upload Screenshots</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={{ height: 32 }} />
+        {/* Tips */}
+        <View style={styles.tipBox}>
+          <Text style={styles.tipTitle}>💡 Tip</Text>
+          <Text style={styles.tipText}>
+            Upload more screenshots to improve AI answers and quiz quality. The more
+            notes you save, the smarter YaadAI gets!
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function QuickAction({
-  icon,
-  label,
-  color,
-  onPress,
-}: {
-  icon: any;
-  label: string;
-  color: string;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity style={styles.actionCard} onPress={onPress}>
-      <View style={[styles.actionIcon, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={24} color={color} />
-      </View>
-      <Text style={styles.actionLabel}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F7F8FC' },
-  header: {
-    backgroundColor: '#6C63FF',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 24,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  appName: { fontSize: 26, fontWeight: '700', color: '#fff' },
-  tagline: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
-  uploadBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statsCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    borderRadius: 16,
-    padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  statItem: { alignItems: 'center' },
-  statNumber: { fontSize: 28, fontWeight: '700', color: '#1A1A2E' },
-  statLabel: { fontSize: 12, color: '#888', marginTop: 4 },
-  statDivider: { width: 1, backgroundColor: '#F0F0F0' },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A2E',
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    gap: 12,
-    marginBottom: 24,
-  },
-  actionCard: {
+  safe: { flex: 1, backgroundColor: '#fff' },
+  container: { padding: 20, gap: 16 },
+
+  // Header
+  header: { gap: 4, paddingTop: 8 },
+  greeting: { fontSize: 14, color: '#888' },
+  title: { fontSize: 32, fontWeight: '900', color: PURPLE },
+  subtitle: { fontSize: 14, color: '#aaa' },
+
+  // Stats
+  statsRow: { flexDirection: 'row', gap: 12 },
+  statCard: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: PURPLE_LIGHT,
+    borderRadius: 16,
     padding: 16,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    gap: 4,
   },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  actionLabel: { fontSize: 13, fontWeight: '500', color: '#444' },
-  categoryRow: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 12,
-    padding: 16,
+  statNum: { fontSize: 28, fontWeight: '900', color: PURPLE },
+  statLabel: { fontSize: 12, color: '#888' },
+
+  // Section
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1a1a1a', marginTop: 4 },
+
+  // AI cards
+  aiCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    backgroundColor: '#FAFAFA',
+    borderRadius: 16,
+    padding: 16,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
-  categoryDot: { width: 12, height: 12, borderRadius: 6 },
-  categoryName: { flex: 1, fontSize: 14, fontWeight: '500', color: '#1A1A2E' },
-  categoryCount: { fontSize: 13, color: '#888' },
-  emptyState: {
+  aiIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: PURPLE_LIGHT,
     alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 32,
+    justifyContent: 'center',
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1A1A2E',
-    marginTop: 16,
+  aiCardText: { flex: 1, gap: 3 },
+  aiCardTitle: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
+  aiCardSub: { fontSize: 12, color: '#888', lineHeight: 17 },
+
+  // Quick actions
+  quickGrid: { flexDirection: 'row', gap: 12 },
+  quickBtn: {
+    flex: 1,
+    backgroundColor: PURPLE_LIGHT,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
   },
-  emptyText: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
+  quickLabel: { fontSize: 12, fontWeight: '600', color: PURPLE },
+
+  // Tip
+  tipBox: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 14,
+    padding: 14,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    marginBottom: 20,
   },
-  emptyBtn: {
-    backgroundColor: '#6C63FF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    marginTop: 24,
-  },
-  emptyBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  tipTitle: { fontSize: 13, fontWeight: '700', color: '#166534' },
+  tipText: { fontSize: 13, color: '#166534', lineHeight: 19 },
 });
