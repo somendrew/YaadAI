@@ -2,6 +2,8 @@
 
 Turn your screenshots into searchable, categorized knowledge. 100% free stack.
 
+> Built with Expo SDK 54 + React Native + Supabase. Tested on iPhone via Expo Go.
+
 ---
 
 ## What's built
@@ -21,8 +23,8 @@ Turn your screenshots into searchable, categorized knowledge. 100% free stack.
 | What | Tool | Cost |
 |------|------|------|
 | Framework | Expo SDK 54 + React Native | Free |
-| OCR | react-native-mlkit-ocr (on-device) | Free forever |
-| Categorization | Rule-based keyword engine | Free forever |
+| OCR | @react-native-ml-kit/text-recognition | Free forever |
+| Categorization | Rule-based keyword engine (on-device) | Free forever |
 | Database | Supabase (free tier) | Free up to 500MB |
 | Image storage | Supabase Storage (free tier) | Free up to 1GB |
 | Navigation | Expo Router | Free |
@@ -35,28 +37,35 @@ Turn your screenshots into searchable, categorized knowledge. 100% free stack.
 
 ```bash
 # Install Node.js from https://nodejs.org (LTS version)
-
-# Install Expo CLI
-npm install -g expo-cli
-
-# Install EAS CLI (needed for building with native OCR)
+# Install EAS CLI
 npm install -g eas-cli
 ```
 
 ### Step 2: Clone and install
 
 ```bash
-cd yaadai
-npm install
+cd YaadAI
+npm install --legacy-peer-deps
 ```
 
-### Step 3: Set up Supabase (free)
+### Step 3: Environment variables
 
-1. Go to https://supabase.com → Create new project (free)
+Create a `.env` file in the project root:
+```
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+```
+
+Then update `src/lib/supabase.ts` to use these env variables.
+
+> ⚠️ Never commit real keys to GitHub. The `.env` file is in `.gitignore`.
+
+### Step 4: Set up Supabase (free)
+
+1. Go to https://supabase.com → Create free project
 2. Go to **SQL Editor** and run this:
 
 ```sql
--- Create the screenshots table
 create table screenshots (
   id uuid default gen_random_uuid() primary key,
   image_url text,
@@ -66,11 +75,9 @@ create table screenshots (
   is_deleted boolean default false
 );
 
--- Enable RLS
 alter table screenshots enable row level security;
 create policy "Allow all" on screenshots for all using (true);
 
--- Create storage bucket
 insert into storage.buckets (id, name, public)
 values ('screenshots', 'screenshots', true);
 
@@ -81,93 +88,84 @@ create policy "Allow reads" on storage.objects
 for select using (bucket_id = 'screenshots');
 ```
 
-3. Go to **Project Settings → API**
-4. Copy **Project URL** and **anon/public key**
-5. Paste them in `src/lib/supabase.ts`
+3. Go to **Settings → API Keys → Legacy anon key**
+4. Copy URL and anon key → paste in `.env`
 
-### Step 4: Set up EAS (for native OCR build)
+### Step 5: Run on device
 
-OCR uses Google ML Kit which needs native code. You need to build a dev client:
-
+**Option A — Expo Go (quickest, no OCR)**
 ```bash
-# Login to Expo account (free)
+npx expo start --tunnel
+# Scan QR with iPhone camera → tap Expo Go
+```
+
+**Option B — Full build with OCR (Android)**
+```bash
 eas login
-
-# Configure EAS in project
-eas build:configure
-
-# Build dev client for Android (free tier: 30 builds/month)
+eas build:configure   # select Android
 eas build --platform android --profile development
-
-# OR for iOS (needs Apple developer account)
-eas build --platform ios --profile development
+# Download APK → install on Android phone
+npx expo start --tunnel
 ```
 
-### Step 5: Run the app
-
-```bash
-# Start dev server
-npx expo start
-
-# Scan QR code with your custom dev client (not regular Expo Go)
-```
+> Note: iOS native build requires paid Apple Developer account (₹8000/year)
 
 ---
 
 ## File structure
 
 ```
-yaadai/
+YaadAI/
 ├── app/                    # Expo Router screens
-│   ├── _layout.tsx         # Root layout
-│   ├── index.tsx           # Home
-│   ├── upload.tsx          # Upload
-│   ├── library.tsx         # Library
-│   ├── search.tsx          # Search
-│   └── detail.tsx          # Detail view
+│   ├── _layout.tsx
+│   ├── index.tsx
+│   ├── upload.tsx
+│   ├── library.tsx
+│   ├── search.tsx
+│   └── detail.tsx
+├── assets/                 # App icons and splash
+│   ├── icon.png
+│   ├── adaptive-icon.png
+│   └── splash.png
 ├── src/
-│   ├── screens/            # Screen components
+│   ├── screens/
 │   │   ├── HomeScreen.tsx
 │   │   ├── UploadScreen.tsx
 │   │   ├── LibraryScreen.tsx
 │   │   ├── SearchScreen.tsx
 │   │   └── DetailScreen.tsx
 │   ├── hooks/
-│   │   └── useOCR.ts       # OCR + upload logic
+│   │   └── useOCR.ts
 │   └── lib/
-│       ├── supabase.ts     # ← PASTE YOUR KEYS HERE
-│       ├── db.ts           # Database operations
-│       └── categorizer.ts  # Free keyword categorizer
+│       ├── supabase.ts
+│       ├── db.ts
+│       └── categorizer.ts
+├── .env                    # ← your keys (never commit this)
+├── .gitignore
 ├── app.json
-├── package.json
-└── babel.config.js
+├── babel.config.js
+└── package.json
 ```
 
 ---
 
-## Categories supported (auto-detected)
+## Auto-detected categories
 
-- DSA & Algorithms
-- System Design
-- Interview Questions
-- Job Description
-- React & Frontend
-- Backend & APIs
-- Database
-- DevOps & Cloud
-- Machine Learning
-- Mathematics
-- Language & Grammar
-- Finance & Business
-- Health & Fitness
-- Recipes & Food
-- General Notes
+DSA & Algorithms, System Design, Interview Questions, Job Description, React & Frontend, Backend & APIs, Database, DevOps & Cloud, Machine Learning, Mathematics, Language & Grammar, Finance & Business, Health & Fitness, Recipes & Food, General Notes
+
+---
+
+## Known limitations in Expo Go
+
+- OCR (text extraction) requires native build — won't work in Expo Go
+- Upload flow works but text will show as "[No text detected]"
+- Full OCR works after Android APK build via EAS
 
 ---
 
 ## Phase 2 (coming next)
 
-- AI Q&A — ask questions about your notes
-- Daily quiz generator
-- Spaced repetition
+- AI Q&A — ask questions from your notes (RAG)
+- Daily quiz generator topic-wise
+- Spaced repetition algorithm
 - Follow-up conversations per note
